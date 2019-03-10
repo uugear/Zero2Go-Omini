@@ -16,7 +16,7 @@ cur_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # utilities
 . "$cur_dir/utilities.sh"
 
-log 'Zero2Go Omini daemon (v1.00) is started.'
+log 'Zero2Go Omini daemon (v1.01) is started.'
 
 # make sure the halt pin is input with internal pull up
 gpio -g mode $HALT_PIN up

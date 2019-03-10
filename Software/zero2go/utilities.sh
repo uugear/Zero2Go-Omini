@@ -4,6 +4,8 @@
 # This script provides some useful utility functions
 #
 
+export LC_ALL=en_GB.UTF-8
+
 readonly I2C_SLAVE_ADDRESS=0x29
 
 readonly I2C_CHANNEL_AI=1
