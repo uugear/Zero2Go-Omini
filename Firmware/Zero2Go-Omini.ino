@@ -1,7 +1,7 @@
 /**
  * Firmware for Zero2Go Omini 
  * 
- * Version: 1.12
+ * Version: 1.13
  */
 #include <core_timers.h>
 #include <analogComp.h>
@@ -57,8 +57,9 @@ volatile boolean forcePowerCut = false;
 
 volatile boolean wakeupByWatchdog = false;
 
-unsigned long buttonStateChangeTime = 0;
+volatile unsigned long buttonStateChangeTime = 0;
 
+volatile unsigned long voltageQueryTime = 0;
 
 void setup() {
 
@@ -123,36 +124,39 @@ void setup() {
 
 
 void loop() {
-  // read input voltages
-  float va = getVoltage(PIN_CHANNEL_A);
-  i2cReg[I2C_CHANNEL_AI] = getIntegerPart(va);
-  i2cReg[I2C_CHANNEL_AD] = getDecimalPart(va);
+  unsigned long curTime = micros();
+  if (voltageQueryTime > curTime || curTime - voltageQueryTime >= 1000000) {
+    voltageQueryTime = curTime;
 
-  float vb = getVoltage(PIN_CHANNEL_B);
-  i2cReg[I2C_CHANNEL_BI] = getIntegerPart(vb);
-  i2cReg[I2C_CHANNEL_BD] = getDecimalPart(vb);
-
-  float vc = getVoltage(PIN_CHANNEL_C);
-  i2cReg[I2C_CHANNEL_CI] = getIntegerPart(vc);
-  i2cReg[I2C_CHANNEL_CD] = getDecimalPart(vc);
-
-  // detect low voltage
-  if (powerIsOn && listenToTxd && i2cReg[I2C_LV_SHUTDOWN] == 0 && i2cReg[I2C_CONF_LOW_VOLTAGE] != 255) {
-    float vmax = max(max(va, vb), vc);
-    float vlow = ((float)i2cReg[I2C_CONF_LOW_VOLTAGE]) / 10;
-    if (vmax < vlow) {  // all input voltages are below the low voltage threshold
-      updateRegister(I2C_LV_SHUTDOWN, 1);
-      suggestShutdown();
+    // read input voltages
+    float va = getVoltage(PIN_CHANNEL_A);
+    i2cReg[I2C_CHANNEL_AI] = getIntegerPart(va);
+    i2cReg[I2C_CHANNEL_AD] = getDecimalPart(va);
+  
+    float vb = getVoltage(PIN_CHANNEL_B);
+    i2cReg[I2C_CHANNEL_BI] = getIntegerPart(vb);
+    i2cReg[I2C_CHANNEL_BD] = getDecimalPart(vb);
+  
+    float vc = getVoltage(PIN_CHANNEL_C);
+    i2cReg[I2C_CHANNEL_CI] = getIntegerPart(vc);
+    i2cReg[I2C_CHANNEL_CD] = getDecimalPart(vc);
+  
+    // detect low voltage
+    if (powerIsOn && listenToTxd && i2cReg[I2C_LV_SHUTDOWN] == 0 && i2cReg[I2C_CONF_LOW_VOLTAGE] != 255) {
+      float vmax = max(max(va, vb), vc);
+      float vlow = ((float)i2cReg[I2C_CONF_LOW_VOLTAGE]) / 10;
+      if (vmax < vlow) {  // all input voltages are below the low voltage threshold
+        updateRegister(I2C_LV_SHUTDOWN, 1);
+        suggestShutdown();
+      }
     }
   }
-  
-  delay(1000);
 }
 
 
 // initialize the registers and synchronize with EEPROM
 void initializeRegisters() {
-  i2cReg[I2C_ID] = 0x70;
+  i2cReg[I2C_ID] = 0x71;
   i2cReg[I2C_CHANNEL_AI] = 0;
   i2cReg[I2C_CHANNEL_AD] = 0;
   i2cReg[I2C_CHANNEL_BI] = 0;
@@ -220,7 +224,6 @@ void sleep() {
     sleep_cpu();                          // sleep
     if (wakeupByWatchdog) {               // wake up by watch dog
       redLightOn();                       // blink red LED (very short)
-      delay(1);
       redLightOff();
       // check input voltages if shutdown because of low voltage, and recovery voltage is set
       if (i2cReg[I2C_LV_SHUTDOWN] == 1 && i2cReg[I2C_CONF_RECOVERY_VOLTAGE] != 255) {        
@@ -265,7 +268,6 @@ void suggestShutdown() {
   PCMSK1 &= ~_BV (PCINT10);
   pinMode(PIN_BUTTON, OUTPUT);
   digitalWrite(PIN_BUTTON, 1);
-  delay(300);
   digitalWrite(PIN_BUTTON, 0);
   pinMode(PIN_BUTTON, INPUT_PULLUP);
   PCMSK1 |= _BV (PCINT10);
