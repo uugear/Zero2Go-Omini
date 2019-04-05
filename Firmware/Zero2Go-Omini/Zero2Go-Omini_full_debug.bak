@@ -1,7 +1,7 @@
 /**
  * Firmware for Zero2Go Omini 
  * 
- * Version: 1.13
+ * Version: 1.12
  */
 #include <core_timers.h>
 #include <analogComp.h>
@@ -37,7 +37,24 @@
 #define I2C_CONF_POWER_CUT_DELAY  14  // the delay (x10) before power cut: default=50 (5 sec)
 #define I2C_CONF_RECOVERY_VOLTAGE 15  // voltage (x10) that triggers recovery, 255=disabled
 
-#define I2C_REG_COUNT   16            // number of I2C registers
+#define I2C_DEBUG_0               16
+#define I2C_DEBUG_1               17
+#define I2C_DEBUG_2               18
+#define I2C_DEBUG_3               19
+#define I2C_DEBUG_4               20
+#define I2C_DEBUG_5               21
+#define I2C_DEBUG_6               22
+#define I2C_DEBUG_7               23
+#define I2C_DEBUG_8               24
+#define I2C_DEBUG_9               25
+#define I2C_DEBUG_A               26
+#define I2C_DEBUG_B               27
+#define I2C_DEBUG_C               28
+#define I2C_DEBUG_D               29
+#define I2C_DEBUG_E               30
+#define I2C_DEBUG_F               31
+
+#define I2C_REG_COUNT   32            // number of I2C registers
 
 volatile byte i2cReg[I2C_REG_COUNT];
 
@@ -60,6 +77,7 @@ volatile boolean wakeupByWatchdog = false;
 volatile unsigned long buttonStateChangeTime = 0;
 
 volatile unsigned long voltageQueryTime = 0;
+
 
 void setup() {
 
@@ -124,39 +142,63 @@ void setup() {
 
 
 void loop() {
-  unsigned long curTime = micros();
-  if (voltageQueryTime > curTime || curTime - voltageQueryTime >= 1000000) {
-    voltageQueryTime = curTime;
 
-    // read input voltages
+  i2cReg[I2C_DEBUG_A] = i2cReg[I2C_DEBUG_A] + 1;
+  
+  // read input voltages
+  //unsigned long curTime = micros();
+
+  voltageQueryTime = voltageQueryTime + 1;
+
+  if (voltageQueryTime > 100000) {  // enters for about every 1 second
+    voltageQueryTime = 0;
+    
+  //if (voltageQueryTime > curTime || curTime - voltageQueryTime >= 1000000) {
+    //voltageQueryTime = curTime;
+    
     float va = getVoltage(PIN_CHANNEL_A);
     i2cReg[I2C_CHANNEL_AI] = getIntegerPart(va);
     i2cReg[I2C_CHANNEL_AD] = getDecimalPart(va);
-  
+
     float vb = getVoltage(PIN_CHANNEL_B);
     i2cReg[I2C_CHANNEL_BI] = getIntegerPart(vb);
     i2cReg[I2C_CHANNEL_BD] = getDecimalPart(vb);
-  
+
     float vc = getVoltage(PIN_CHANNEL_C);
     i2cReg[I2C_CHANNEL_CI] = getIntegerPart(vc);
     i2cReg[I2C_CHANNEL_CD] = getDecimalPart(vc);
+    
+    i2cReg[I2C_DEBUG_B] = i2cReg[I2C_DEBUG_B] + 1;
+
+    i2cReg[I2C_DEBUG_0] = powerIsOn;
+    i2cReg[I2C_DEBUG_1] = listenToTxd;
+  
+    i2cReg[I2C_DEBUG_C] = i2cReg[I2C_DEBUG_C] + 1;
   
     // detect low voltage
     if (powerIsOn && listenToTxd && i2cReg[I2C_LV_SHUTDOWN] == 0 && i2cReg[I2C_CONF_LOW_VOLTAGE] != 255) {
+      i2cReg[I2C_DEBUG_2] = 1;
       float vmax = max(max(va, vb), vc);
       float vlow = ((float)i2cReg[I2C_CONF_LOW_VOLTAGE]) / 10;
       if (vmax < vlow) {  // all input voltages are below the low voltage threshold
+        i2cReg[I2C_DEBUG_2] = 2;
         updateRegister(I2C_LV_SHUTDOWN, 1);
         suggestShutdown();
       }
     }
+  
+    i2cReg[I2C_DEBUG_D] = i2cReg[I2C_DEBUG_D] + 1;
+    
+    //delay(1000);
+  
+    i2cReg[I2C_DEBUG_E] = i2cReg[I2C_DEBUG_E] + 1;
   }
 }
 
 
 // initialize the registers and synchronize with EEPROM
 void initializeRegisters() {
-  i2cReg[I2C_ID] = 0x71;
+  i2cReg[I2C_ID] = 0x70;
   i2cReg[I2C_CHANNEL_AI] = 0;
   i2cReg[I2C_CHANNEL_AD] = 0;
   i2cReg[I2C_CHANNEL_BI] = 0;
@@ -173,6 +215,23 @@ void initializeRegisters() {
   i2cReg[I2C_CONF_BULK_ALWAYS_ON] = 0;
   i2cReg[I2C_CONF_POWER_CUT_DELAY] = 50;
   i2cReg[I2C_CONF_RECOVERY_VOLTAGE] = 255;
+
+  i2cReg[I2C_DEBUG_0] = 0;
+  i2cReg[I2C_DEBUG_1] = 0;
+  i2cReg[I2C_DEBUG_2] = 0;
+  i2cReg[I2C_DEBUG_3] = 0;
+  i2cReg[I2C_DEBUG_4] = 0;
+  i2cReg[I2C_DEBUG_5] = 0;
+  i2cReg[I2C_DEBUG_6] = 0;
+  i2cReg[I2C_DEBUG_7] = 0;
+  i2cReg[I2C_DEBUG_8] = 0;
+  i2cReg[I2C_DEBUG_9] = 0;
+  i2cReg[I2C_DEBUG_A] = 0;
+  i2cReg[I2C_DEBUG_B] = 0;
+  i2cReg[I2C_DEBUG_C] = 0;
+  i2cReg[I2C_DEBUG_D] = 0;
+  i2cReg[I2C_DEBUG_E] = 0;
+  i2cReg[I2C_DEBUG_F] = 0;  
 
   // make sure product name is stored
   EEPROM.update(0, 'Z');
@@ -223,11 +282,8 @@ void sleep() {
   do {
     sleep_cpu();                          // sleep
     if (wakeupByWatchdog) {               // wake up by watch dog
-      // blink red LED
-      redLightOn();
-      redLightOn();
-      redLightOn();
-      redLightOn();
+      redLightOn();                       // blink red LED (very short)
+      //delay(1);
       redLightOff();
       // check input voltages if shutdown because of low voltage, and recovery voltage is set
       if (i2cReg[I2C_LV_SHUTDOWN] == 1 && i2cReg[I2C_CONF_RECOVERY_VOLTAGE] != 255) {        
@@ -257,6 +313,7 @@ void sleep() {
   buttonPressed = true;
   powerOn();
   TCNT1 = getPowerCutPreloadTimer();
+  i2cReg[I2C_DEBUG_3] = i2cReg[I2C_DEBUG_3] + 1;
 }
 
 
@@ -272,6 +329,7 @@ void suggestShutdown() {
   PCMSK1 &= ~_BV (PCINT10);
   pinMode(PIN_BUTTON, OUTPUT);
   digitalWrite(PIN_BUTTON, 1);
+  //delay(300);
   digitalWrite(PIN_BUTTON, 0);
   pinMode(PIN_BUTTON, INPUT_PULLUP);
   PCMSK1 |= _BV (PCINT10);
@@ -382,10 +440,17 @@ ISR (PCINT1_vect) {
   // debounce
   unsigned long prevTime = buttonStateChangeTime;
   buttonStateChangeTime = micros();
+
+  i2cReg[I2C_DEBUG_6] = (buttonStateChangeTime & 0xFF);
+  i2cReg[I2C_DEBUG_7] = ((buttonStateChangeTime >> 8) & 0xFF);
+  i2cReg[I2C_DEBUG_8] = ((buttonStateChangeTime >> 16) & 0xFF);
+  i2cReg[I2C_DEBUG_9] = ((buttonStateChangeTime >> 24) & 0xFF);
+  
   if (buttonStateChangeTime - prevTime < 10) {
+    i2cReg[I2C_DEBUG_4] = i2cReg[I2C_DEBUG_4] + 1;
     return;
   }
-    
+
   wakeupByWatchdog = false;
   
   if (forcePowerCut) {
@@ -403,9 +468,11 @@ ISR (PCINT1_vect) {
     }
     
     if (digitalRead(PIN_SYSTEM_UP) == 1)  {
+      i2cReg[I2C_DEBUG_5] = 1;
       // clear the low-voltage shutdown flag when sys_up signal arrives
       if (listenToTxd == false) {
         updateRegister(I2C_LV_SHUTDOWN, 0);
+        i2cReg[I2C_DEBUG_5] = 2;
       }
       // start listen to TXD pin
       listenToTxd = true;
