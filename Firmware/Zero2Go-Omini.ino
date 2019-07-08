@@ -1,7 +1,7 @@
 /**
  * Firmware for Zero2Go Omini 
  * 
- * Version: 1.13
+ * Version: 1.14
  */
 #include <core_timers.h>
 #include <analogComp.h>
@@ -156,7 +156,7 @@ void loop() {
 
 // initialize the registers and synchronize with EEPROM
 void initializeRegisters() {
-  i2cReg[I2C_ID] = 0x71;
+  i2cReg[I2C_ID] = 0x72;
   i2cReg[I2C_CHANNEL_AI] = 0;
   i2cReg[I2C_CHANNEL_AD] = 0;
   i2cReg[I2C_CHANNEL_BI] = 0;
@@ -230,7 +230,8 @@ void sleep() {
       redLightOn();
       redLightOff();
       // check input voltages if shutdown because of low voltage, and recovery voltage is set
-      if (i2cReg[I2C_LV_SHUTDOWN] == 1 && i2cReg[I2C_CONF_RECOVERY_VOLTAGE] != 255) {        
+      // will skip checking I2C_LV_SHUTDOWN if I2C_CONF_LOW_VOLTAGE is set to 0xFF
+      if ((i2cReg[I2C_LV_SHUTDOWN] == 1 || i2cReg[I2C_CONF_LOW_VOLTAGE] == 255) && i2cReg[I2C_CONF_RECOVERY_VOLTAGE] != 255) {        
         ADCSRA |= _BV(ADEN);
         float va = getVoltage(PIN_CHANNEL_A);
         float vb = getVoltage(PIN_CHANNEL_B);
