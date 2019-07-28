@@ -210,7 +210,17 @@ set_bulk_always_on()
 }
 
 # output and refresh the interface
-log2file 'Zero2Go Omini console (v1.01) initialized...'
+log2file 'Zero2Go Omini console (v1.11) initialized...'
+
+if one_wire_confliction ; then
+	echo ''
+	log 'Confliction detected:'
+	log "1-Wire interface is enabled on GPIO-$HALT_PIN, which is also used by Zero2Go Omini."
+	log 'You may solve this confliction by moving 1-Wire interface to another GPIO pin.'
+	echo ''
+	exit
+fi
+
 while true; do
 
 tput clear
@@ -222,7 +232,7 @@ echo 'ZERO2GO OMINI CONSOLE'
 tput sgr0
 tput cup 2 20
 tput setaf 8
-echo 'v1.01 by UUGear s.r.o.'
+echo 'v1.11 by UUGear s.r.o.'
 tput sgr0
 
 tput cup 4 0

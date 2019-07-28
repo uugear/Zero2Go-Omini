@@ -4,19 +4,28 @@
 # This script should be auto started, to support Zero2Go Omini hardware
 #
 
-# halt by GPIO-4 (BCM naming)
-readonly HALT_PIN=4
-
-# pull up GPIO-17 (BCM naming) to indicate system is up
-readonly SYSUP_PIN=17
-
 # get current directory
 cur_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # utilities
 . "$cur_dir/utilities.sh"
 
-log 'Zero2Go Omini daemon (v1.01) is started.'
+log 'Zero2Go Omini daemon (v1.11) is started.'
+
+# log Raspberry Pi model
+pi_model=$(cat /proc/device-tree/model)
+log "Running on $pi_model"
+
+# log wiringPi version number
+wp_ver=$(gpio -v | sed -n '1 s/.*\([0-9]\+\.[0-9]\+\).*/\1/p')
+log "Wiring Pi version: $wp_ver"
+
+# check 1-wire confliction
+if one_wire_confliction ; then
+	log "Confliction: 1-Wire interface is enabled on GPIO-$HALT_PIN, which is also used by Zero2Go Omini."
+	log 'Zero2Go daemon can not work until you solve this confliction and reboot Raspberry Pi.'
+	exit
+fi
 
 # make sure the halt pin is input with internal pull up
 gpio -g mode $HALT_PIN up

@@ -25,6 +25,31 @@ readonly I2C_CONF_BULK_ALWAYS_ON=13
 readonly I2C_CONF_POWER_CUT_DELAY=14
 readonly I2C_CONF_RECOVERY_VOLTAGE=15
 
+# halt by GPIO-4 (BCM naming)
+readonly HALT_PIN=4
+
+# pull up GPIO-17 (BCM naming) to indicate system is up
+readonly SYSUP_PIN=17
+
+
+one_wire_confliction()
+{
+	if [[ $HALT_PIN -eq 4 ]]; then
+		if grep -qe "^\s*dtoverlay=w1-gpio\s*$" /boot/config.txt; then
+	  	return 0
+		fi
+		if grep -qe "^\s*dtoverlay=w1-gpio-pullup\s*$" /boot/config.txt; then
+	  	return 0
+		fi
+	fi 
+  if grep -qe "^\s*dtoverlay=w1-gpio,gpiopin=$HALT_PIN\s*$" /boot/config.txt; then
+  	return 0
+	fi
+	if grep -qe "^\s*dtoverlay=w1-gpio-pullup,gpiopin=$HALT_PIN\s*$" /boot/config.txt; then
+  	return 0
+	fi
+	return 1
+}
 
 zero2go_home="`dirname \"$0\"`"
 zero2go_home="`( cd \"$zero2go_home\" && pwd )`"
