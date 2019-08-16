@@ -71,36 +71,24 @@ else
   apt-get install -y i2c-tools || ((ERR++))
 fi
 
-# check if it is Jessie or above
-osInfo=$(cat /etc/os-release)
-if [[ $osInfo == *"jessie"* || $osInfo == *"stretch"* || $osInfo == *"buster"* ]] ; then
-  isJessieOrAbove=true
-else
-  isJessieOrAbove=false
-fi
+# check if it is Raspberry Pi 4
+isRpi4=$(cat /proc/device-tree/model | sed -n 's/.*\(Raspberry Pi 4\).*/1/p')
 
 # install wiringPi
 if [ $ERR -eq 0 ]; then
   echo '>>> Install wiringPi'
+  ver=0;
   if hash gpio 2>/dev/null; then
-    echo 'Seems wiringPi is installed already, skip this step.'
-  else
-    if $isJessieOrAbove ; then
-      apt-get install -y wiringpi || ((ERR++))
-    else
-      if hash git 2>/dev/null; then
-        echo "Git has been installed already..."
-      else
-        echo "Git is missing, install it now..."
-        apt-get install -y git || ((ERR++))
-      fi
-      if [ $ERR -eq 0 ]; then
-        git clone git://git.drogon.net/wiringPi || ((ERR++))
-        cd wiringPi
-        ./build
-        cd ..
-      fi
-    fi
+  	ver=$(gpio -v | sed -n '1 s/.*\([0-9]\+\.[0-9]\+\).*/\1/p')
+  	echo "wiringPi version: $ver"
+ 	else
+ 		apt-get -y install wiringpi
+ 		ver=$(gpio -v | sed -n '1 s/.*\([0-9]\+\.[0-9]\+\).*/\1/p')
+  fi
+	if [[ $isRpi4 -eq 1 ]] && (( $(awk "BEGIN {print ($ver < 2.52)}") )); then
+ 		wget https://project-downloads.drogon.net/wiringpi-latest.deb || ((ERR++))
+		dpkg -i wiringpi-latest.deb || ((ERR++))
+		rm wiringpi-latest.deb
   fi
 fi
 
