@@ -1,7 +1,7 @@
 /**
  * Firmware for Zero2Go Omini 
  * 
- * Version: 1.14
+ * Version: 1.15
  */
 #include <core_timers.h>
 #include <analogComp.h>
@@ -64,6 +64,7 @@ volatile unsigned long voltageQueryTime = 0;
 void setup() {
 
   // initialize pin states and make sure power is cut
+  digitalWrite(PIN_BOOST_DIS, 1);   // disable boost engine ASAP
   pinMode(PIN_BUTTON, INPUT_PULLUP);
   pinMode(PIN_BOOST_DIS, OUTPUT);
   pinMode(PIN_BULK_EN, OUTPUT);
@@ -156,7 +157,7 @@ void loop() {
 
 // initialize the registers and synchronize with EEPROM
 void initializeRegisters() {
-  i2cReg[I2C_ID] = 0x72;
+  i2cReg[I2C_ID] = 0x73;
   i2cReg[I2C_CHANNEL_AI] = 0;
   i2cReg[I2C_CHANNEL_AD] = 0;
   i2cReg[I2C_CHANNEL_BI] = 0;
