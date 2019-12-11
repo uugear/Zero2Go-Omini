@@ -1,7 +1,7 @@
 /**
  * Firmware for Zero2Go Omini 
  * 
- * Version: 1.15
+ * Version: 1.17
  */
 #include <core_timers.h>
 #include <analogComp.h>
@@ -18,6 +18,8 @@
 #define PIN_CHANNEL_A   A3            // pin to ADC3
 #define PIN_CHANNEL_B   A5            // pin to ADC5
 #define PIN_CHANNEL_C   A7            // pin to ADC7
+#define PIN_SDA         4             // pin to SDA for I2C
+#define PIN_SCL         6             // pin to SCL for I2C
 
 #define I2C_ID          0             // firmware id
 #define I2C_CHANNEL_AI  1             // integer part for voltage of channel A
@@ -73,6 +75,8 @@ void setup() {
   pinMode(PIN_CHANNEL_A, INPUT);
   pinMode(PIN_CHANNEL_B, INPUT);
   pinMode(PIN_CHANNEL_C, INPUT);
+  pinMode(PIN_SDA, INPUT_PULLUP);
+  pinMode(PIN_SCL, INPUT_PULLUP);
   cutPower();
 
   // use internal 2.2V reference
@@ -99,12 +103,8 @@ void setup() {
   TCCR1A = 0;    // set entire TCCR1A register to 0
   TCCR1B = 0;    // set entire TCCR1B register to 0
 
-  // enable Timer1 overflow interrupt:
-  bitSet(TIMSK1, TOIE1);
-
-  // set 1024 prescaler
-  bitSet(TCCR1B, CS12);
-  bitSet(TCCR1B, CS10);
+  // enable Timer1
+  timer1_enable();
 
   // enable comparator
   analogComparator.setOn(INTERNAL_REFERENCE, AIN1);
@@ -157,7 +157,7 @@ void loop() {
 
 // initialize the registers and synchronize with EEPROM
 void initializeRegisters() {
-  i2cReg[I2C_ID] = 0x73;
+  i2cReg[I2C_ID] = 0x75;
   i2cReg[I2C_CHANNEL_AI] = 0;
   i2cReg[I2C_CHANNEL_AD] = 0;
   i2cReg[I2C_CHANNEL_BI] = 0;
@@ -213,7 +213,34 @@ void watchdog_disable() {
 }
 
 
+void timer1_enable() {
+  // set entire TCCR1A and TCCR1B register to 0
+  TCCR1A = 0;
+  TCCR1B = 0;
+  
+  // set 1024 prescaler
+  bitSet(TCCR1B, CS12);
+  bitSet(TCCR1B, CS10);
+
+  // clear overflow interrupt flag
+  bitSet(TIFR1, TOV1);
+
+  // set timer counter
+  TCNT1 = getPowerCutPreloadTimer();
+
+  // enable Timer1 overflow interrupt
+  bitSet(TIMSK1, TOIE1);
+}
+
+
+void timer1_disable() {
+  // disable Timer1 overflow interrupt
+  bitClear(TIMSK1, TOIE1);
+}
+
+
 void sleep() {
+  timer1_disable();                       // disable Timer1
   ADCSRA &= ~_BV(ADEN);                   // ADC off
   set_sleep_mode(SLEEP_MODE_PWR_DOWN);    // power-down mode 
   watchdog_enable();                      // enable watchdog
@@ -251,7 +278,11 @@ void sleep() {
   sleep_disable();                        // clear SE bit
   watchdog_disable();                     // disable watchdog
   ADCSRA |= _BV(ADEN);                    // ADC on
+  timer1_enable();                        // enable Timer1
   sei();                                  // enable interrupts
+
+  pinMode(PIN_SDA, INPUT_PULLUP);         // explicitly specify SDA pin mode before waking up
+  pinMode(PIN_SCL, INPUT_PULLUP);         // explicitly specify SCL pin mode before waking up
 
   // tap the button to wake up
   listenToTxd = false;
