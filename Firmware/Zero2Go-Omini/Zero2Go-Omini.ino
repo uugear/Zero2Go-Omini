@@ -6,6 +6,7 @@
 #include <core_timers.h>
 #include <analogComp.h>
 #include <avr/sleep.h>
+#include <util/delay.h>
 #include <WireS.h>
 #include <EEPROM.h>
 
@@ -38,8 +39,9 @@
 #define I2C_CONF_BULK_ALWAYS_ON   13  // always enable bulk converter: 1=yes, 0=no
 #define I2C_CONF_POWER_CUT_DELAY  14  // the delay (x10) before power cut: default=50 (5 sec)
 #define I2C_CONF_RECOVERY_VOLTAGE 15  // voltage (x10) that triggers recovery, 255=disabled
+#define I2C_CONF_WATCHDOG_TIMEOUT 16  // set watchdog timeout, reset watchdog, 0=disabled
 
-#define I2C_REG_COUNT   16            // number of I2C registers
+#define I2C_REG_COUNT   17            // number of I2C registers
 
 volatile byte i2cReg[I2C_REG_COUNT];
 
@@ -59,9 +61,13 @@ volatile boolean forcePowerCut = false;
 
 volatile boolean wakeupByWatchdog = false;
 
+volatile boolean watchdogEnabled = false;
+
 volatile unsigned long buttonStateChangeTime = 0;
 
 volatile unsigned long voltageQueryTime = 0;
+
+volatile unsigned long watchdogCounter = 0;
 
 void timer1_enable();
 void cutPower();
@@ -80,6 +86,9 @@ boolean addressEvent(uint16_t slaveAddress, uint8_t startCount);
 void requestEvent();
 void comparatorStatusChanged();
 void sleep();
+void resetWatchdog();
+void watchdog_enable();
+void watchdog_disable();
 
 void setup() {
 
@@ -169,6 +178,14 @@ void loop() {
         suggestShutdown();
       }
     }
+
+    // the watchdog feature relies on the attiny watchdog
+    if (i2cReg[I2C_CONF_WATCHDOG_TIMEOUT] && !watchdogEnabled) {
+      watchdog_enable();
+    }
+    if (!i2cReg[I2C_CONF_WATCHDOG_TIMEOUT] && watchdogEnabled) {
+      watchdog_disable();
+    }
   }
 }
 
@@ -192,6 +209,8 @@ void initializeRegisters() {
   i2cReg[I2C_CONF_BULK_ALWAYS_ON] = 0;
   i2cReg[I2C_CONF_POWER_CUT_DELAY] = 50;
   i2cReg[I2C_CONF_RECOVERY_VOLTAGE] = 255;
+
+  i2cReg[I2C_CONF_WATCHDOG_TIMEOUT] = 0;
 
   // make sure product name is stored
   EEPROM.update(0, 'Z');
@@ -220,14 +239,18 @@ void watchdog_enable() {
   cli();
   WDTCSR |= _BV(WDIE);
   byte wdp = (i2cReg[I2C_CONF_BLINK_INTERVAL] > 9 ? 8 : i2cReg[I2C_CONF_BLINK_INTERVAL]);
+  wdp = wdp < 6 ? 6 : wdp;
   wdp = (((wdp & B00001000) << 2) | (wdp & B11110111));
   WDTCSR |= wdp;
   sei();
+  watchdogEnabled = true;
+  watchdogCounter = 0;
 }
 
 
 void watchdog_disable() {
   WDTCSR = 0;
+  watchdogEnabled = false;
 }
 
 
@@ -287,6 +310,9 @@ void sleep() {
         float vrec = ((float)i2cReg[I2C_CONF_RECOVERY_VOLTAGE]) / 10;
         if (vmax >= vrec) {
           wakeupByWatchdog = false;       // recovery from low voltage shutdown
+        } else {
+          // inhibit watchdog feature when voltage is too low
+          watchdogCounter = 0;
         }
       }
     }
@@ -424,7 +450,20 @@ void requestEvent() {
 
 // watchdog interrupt routine
 ISR (WDT_vect) {
-  // no need to do anything here
+  if (i2cReg[I2C_CONF_WATCHDOG_TIMEOUT]) {
+    // minimum timeout is 1m20s (10*8s)
+    unsigned long timeout = (i2cReg[I2C_CONF_WATCHDOG_TIMEOUT] + 9);
+    // timeout is made independant of the attiny watchdog prescaler
+    timeout *= (1 << (9 - (((WDTCSR & B00100000) >> 2) | (WDTCSR & B00000111))));
+    watchdogCounter++;
+    if (watchdogCounter >= timeout){
+      // watchdog timeout, trigger a reboot
+      watchdogCounter = 0;
+      cutPower();
+      _delay_ms (5000);
+      powerOn();
+    }
+  }
 }
 
 
@@ -493,14 +532,25 @@ void comparatorStatusChanged() {
   }
 }
 
+void resetWatchdog() {
+  watchdogCounter = 0;
+  redLightOn();
+  _delay_ms(50);
+  redLightOff();
+}
 
 // update I2C register, save to EEPROM if it is configuration
 void updateRegister(int index, byte value) {
-  i2cReg[index] = value;
-  if (index >= I2C_CONF_ADDRESS) {
-    EEPROM.update(index, value);
+  if (i2cReg[index] != value) {
+    i2cReg[index] = value;
+    if (index >= I2C_CONF_ADDRESS) {
+      EEPROM.update(index, value);
+    }
   }
   if (index == I2C_CONF_BULK_ALWAYS_ON) {
     powerOn();
+  }
+  if (index == I2C_CONF_WATCHDOG_TIMEOUT) {
+    resetWatchdog();
   }
 }
