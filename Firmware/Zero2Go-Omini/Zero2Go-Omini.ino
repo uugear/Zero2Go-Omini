@@ -6,6 +6,7 @@
 #include <core_timers.h>
 #include <analogComp.h>
 #include <avr/sleep.h>
+#include <util/delay.h>
 #include <WireS.h>
 #include <EEPROM.h>
 
@@ -38,8 +39,9 @@
 #define I2C_CONF_BULK_ALWAYS_ON   13  // always enable bulk converter: 1=yes, 0=no
 #define I2C_CONF_POWER_CUT_DELAY  14  // the delay (x10) before power cut: default=50 (5 sec)
 #define I2C_CONF_RECOVERY_VOLTAGE 15  // voltage (x10) that triggers recovery, 255=disabled
+#define I2C_CONF_WATCHDOG_TIMEOUT 16  // set watchdog timeout, reset watchdog, 0=disabled
 
-#define I2C_REG_COUNT   16            // number of I2C registers
+#define I2C_REG_COUNT   17            // number of I2C registers
 
 volatile byte i2cReg[I2C_REG_COUNT];
 
@@ -63,7 +65,10 @@ volatile unsigned long buttonStateChangeTime = 0;
 
 volatile unsigned long voltageQueryTime = 0;
 
+volatile int watchdogCounter = 0;
+
 void timer1_enable();
+void timer2_enable();
 void cutPower();
 void powerOn();
 void redLightOn();
@@ -80,6 +85,7 @@ boolean addressEvent(uint16_t slaveAddress, uint8_t startCount);
 void requestEvent();
 void comparatorStatusChanged();
 void sleep();
+void resetWatchdog();
 
 void setup() {
 
@@ -124,6 +130,11 @@ void setup() {
   // enable Timer1
   timer1_enable();
 
+  // enable watchdog
+  if (i2cReg[I2C_CONF_WATCHDOG_TIMEOUT]) {
+    resetWatchdog();
+  }
+
   // enable comparator
   analogComparator.setOn(INTERNAL_REFERENCE, AIN1);
   analogComparator.enableInterrupt(comparatorStatusChanged, CHANGE);
@@ -139,6 +150,7 @@ void setup() {
   } else {
     sleep();    // sleep and wait for button action
   }
+
 }
 
 
@@ -192,6 +204,8 @@ void initializeRegisters() {
   i2cReg[I2C_CONF_BULK_ALWAYS_ON] = 0;
   i2cReg[I2C_CONF_POWER_CUT_DELAY] = 50;
   i2cReg[I2C_CONF_RECOVERY_VOLTAGE] = 255;
+
+  i2cReg[I2C_CONF_WATCHDOG_TIMEOUT] = 0;
 
   // make sure product name is stored
   EEPROM.update(0, 'Z');
@@ -256,9 +270,14 @@ void timer1_disable() {
   bitClear(TIMSK1, TOIE1);
 }
 
+void timer2_disable() {
+  // disable Timer2 overflow interrupt:
+  bitClear(TIMSK2, TOIE2);
+}
 
 void sleep() {
   timer1_disable();                       // disable Timer1
+  timer2_disable();
   ADCSRA &= ~_BV(ADEN);                   // ADC off
   set_sleep_mode(SLEEP_MODE_PWR_DOWN);    // power-down mode 
   watchdog_enable();                      // enable watchdog
@@ -484,6 +503,22 @@ ISR (TIM1_OVF_vect) {
 }
 
 
+// timer2 overflow interrupt routine
+ISR (TIM2_OVF_vect) {
+  // overflow in 8s
+  TCNT2 = 3035;
+  watchdogCounter++;
+  // minimum watchdog timeout is 1m20s
+  if (watchdogCounter >= (i2cReg[I2C_CONF_WATCHDOG_TIMEOUT] + 9)){
+    // watchdog timeout, trigger a reboot
+    watchdogCounter = 0;
+    cutPower();
+    _delay_ms (5000);
+    powerOn();
+  }
+}
+
+
 // analog comparator interrupt routine
 void comparatorStatusChanged() {
   bulkOrBoost = ((ACSR0A & (1<<ACO)) == 0);
@@ -493,14 +528,40 @@ void comparatorStatusChanged() {
   }
 }
 
+void resetWatchdog() {
+  watchdogCounter = 0;
+  // overflow in 8s
+  TCNT2 = 3035;
+
+  // initialize Timer2
+  TCCR2A = 0;    // set entire TCCR1A register to 0
+  TCCR2B = 0;    // set entire TCCR1B register to 0
+
+  if (i2cReg[I2C_CONF_WATCHDOG_TIMEOUT]) {
+    // enable Timer2 overflow interrupt:
+    bitSet(TIMSK2, TOIE2);
+    // set 1024 prescaler
+    bitSet(TCCR2B, CS12);
+    bitSet(TCCR2B, CS10);
+  }
+
+  redLightOn();
+  _delay_ms(50);
+  redLightOff();
+}
 
 // update I2C register, save to EEPROM if it is configuration
 void updateRegister(int index, byte value) {
-  i2cReg[index] = value;
-  if (index >= I2C_CONF_ADDRESS) {
-    EEPROM.update(index, value);
+  if (i2cReg[index] != value) {
+    i2cReg[index] = value;
+    if (index >= I2C_CONF_ADDRESS) {
+      EEPROM.update(index, value);
+    }
   }
   if (index == I2C_CONF_BULK_ALWAYS_ON) {
     powerOn();
+  }
+  if (index == I2C_CONF_WATCHDOG_TIMEOUT) {
+    resetWatchdog();
   }
 }
