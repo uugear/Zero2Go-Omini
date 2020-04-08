@@ -1,7 +1,7 @@
 /**
  * Firmware for Zero2Go Omini 
  * 
- * Version: 1.17
+ * Version: 1.18
  */
 #include <core_timers.h>
 #include <analogComp.h>
@@ -157,7 +157,7 @@ void loop() {
 
 // initialize the registers and synchronize with EEPROM
 void initializeRegisters() {
-  i2cReg[I2C_ID] = 0x75;
+  i2cReg[I2C_ID] = 0x76;
   i2cReg[I2C_CHANNEL_AI] = 0;
   i2cReg[I2C_CHANNEL_AD] = 0;
   i2cReg[I2C_CHANNEL_BI] = 0;
@@ -252,6 +252,8 @@ void sleep() {
     sleep_cpu();                          // sleep
     if (wakeupByWatchdog) {               // wake up by watch dog
       // blink red LED
+      redLightOn();
+      redLightOn();
       redLightOn();
       redLightOn();
       redLightOn();
@@ -469,10 +471,11 @@ ISR (TIM1_OVF_vect) {
 // analog comparator interrupt routine
 void comparatorStatusChanged() {
   bulkOrBoost = ((ACSR0A & (1<<ACO)) == 0);
-  updateRegister(I2C_BULK_BOOST, bulkOrBoost ? 1 : 0);
   if (powerIsOn) {
-    powerOn();
+    digitalWrite(PIN_BOOST_DIS, bulkOrBoost);
+    digitalWrite(PIN_BULK_EN, bulkOrBoost || i2cReg[I2C_CONF_BULK_ALWAYS_ON] == 1);
   }
+  updateRegister(I2C_BULK_BOOST, bulkOrBoost ? 1 : 0);  
 }
 
 
