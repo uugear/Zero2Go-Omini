@@ -2,6 +2,9 @@
 # file: zero2go.sh
 #
 
+#use single locale
+LC_ALL=C.UTF-8
+
 # include utilities script in same directory
 my_dir="`dirname \"$0\"`"
 my_dir="`( cd \"$my_dir\" && pwd )`"
