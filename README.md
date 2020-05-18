@@ -11,3 +11,19 @@ The firmware is compiled and uploaded to Zero2Go Omini via Arduino IDE (with ATT
 The software is written in BASH.
 
 More information about the firmware and software can be found in the user manual: http://www.uugear.com/doc/Zero2Go_Omini_UserManual.pdf
+
+# Firmware build instructions
+
+You can use the provided Dockerfile and Makefile (made with [Arduino-Makefile](https://github.com/sudar/Arduino-Makefile/)) to quickly set up a build environment with all the required dependencies.:
+
+```
+cd Firmware/Zero2Go-Omini
+docker build -t zero2go-omini .
+```
+
+The firmware can then be built with:
+
+```
+cd Firmware/Zero2Go-Omini
+docker run -ti -v $(pwd):/src zero2go-omini:latest
+```
