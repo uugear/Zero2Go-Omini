@@ -36,26 +36,39 @@ if grep -q 'i2c-dev' /etc/modules; then
 else
   echo 'i2c-dev' >> /etc/modules
 fi
-if grep -q 'dtparam=i2c1=on' /boot/config.txt; then
-  echo 'Seems i2c1 parameter already set, skip this step.'
-else
+
+i2c1=$(grep 'dtparam=i2c1=on' /boot/config.txt)
+i2c1=$(echo -e "$i2c1" | sed -e 's/^[[:space:]]*//')
+if [[ -z "$i2c1" || "$i2c1" == "#"* ]]; then
   echo 'dtparam=i2c1=on' >> /boot/config.txt
-fi
-if grep -q 'dtparam=i2c_arm=on' /boot/config.txt; then
-  echo 'Seems i2c_arm parameter already set, skip this step.'
 else
+  echo 'Seems i2c1 parameter already set, skip this step.'
+fi
+
+i2c_arm=$(grep 'dtparam=i2c_arm=on' /boot/config.txt)
+i2c_arm=$(echo -e "$i2c_arm" | sed -e 's/^[[:space:]]*//')
+if [[ -z "$i2c_arm" || "$i2c_arm" == "#"* ]]; then
   echo 'dtparam=i2c_arm=on' >> /boot/config.txt
-fi
-if grep -q 'dtoverlay=pi3-miniuart-bt' /boot/config.txt; then
-  echo 'Seems setting Pi3 Bluetooth to use mini-UART is done already, skip this step.'
 else
+  echo 'Seems i2c_arm parameter already set, skip this step.'
+fi
+
+miniuart=$(grep 'dtoverlay=pi3-miniuart-bt' /boot/config.txt)
+miniuart=$(echo -e "$miniuart" | sed -e 's/^[[:space:]]*//')
+if [[ -z "$miniuart" || "$miniuart" == "#"* ]]; then
   echo 'dtoverlay=pi3-miniuart-bt' >> /boot/config.txt
-fi
-if grep -q 'core_freq=250' /boot/config.txt; then
-  echo 'Seems the frequency of GPU processor core is set to 250MHz already, skip this step.'
 else
-  echo 'core_freq=250' >> /boot/config.txt
+  echo 'Seems setting Pi3/4 Bluetooth to use mini-UART is done already, skip this step.'
 fi
+
+core_freq=$(grep 'core_freq=250' /boot/config.txt)
+core_freq=$(echo -e "$core_freq" | sed -e 's/^[[:space:]]*//')
+if [[ -z "$core_freq" || "$core_freq" == "#"* ]]; then
+  echo 'core_freq=250' >> /boot/config.txt
+else
+  echo 'Seems the frequency of GPU processor core is set to 250MHz already, skip this step.'
+fi
+
 if [ -f /etc/modprobe.d/raspi-blacklist.conf ]; then
   sed -i 's/^blacklist spi-bcm2708/#blacklist spi-bcm2708/' /etc/modprobe.d/raspi-blacklist.conf
   sed -i 's/^blacklist i2c-bcm2708/#blacklist i2c-bcm2708/' /etc/modprobe.d/raspi-blacklist.conf
@@ -107,11 +120,14 @@ if [ $ERR -eq 0 ]; then
     chmod +x /etc/init.d/zero2go_daemon
     update-rc.d zero2go_daemon defaults
     cd ..
-    chown -R pi:pi zero2go
+    chown -R $SUDO_USER:$(id -g -n $SUDO_USER) zero2go || ((ERR++))
     sleep 2
     rm zero2go.zip
   fi
 fi
+
+# install UUGear Web Interface
+curl http://www.uugear.com/repo/UWI/installUWI.sh | bash
 
 echo
 if [ $ERR -eq 0 ]; then
