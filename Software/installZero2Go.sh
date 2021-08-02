@@ -111,7 +111,7 @@ if [ $ERR -eq 0 ]; then
   if [ -d "zero2go" ]; then
     echo 'Seems zero2go is installed already, skip this step.'
   else
-    wget http://www.uugear.com/repo/Zero2GoOmini/LATEST -O zero2go.zip || ((ERR++))
+    wget https://www.uugear.com/repo/Zero2GoOmini/LATEST -O zero2go.zip || ((ERR++))
     unzip zero2go.zip -d zero2go || ((ERR++))
     cd zero2go
     chmod +x zero2go.sh
