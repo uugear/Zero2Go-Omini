@@ -8,7 +8,8 @@ my_dir="`( cd \"$my_dir\" && pwd )`"
 if [ -z "$my_dir" ] ; then
   exit 1
 fi
-. $my_dir/utilities.sh
+. "$my_dir/utilities.sh"
+. "$my_dir/gpio-util.sh"
 
 # take the ownership of the log file
 sudo chown $USER:$USER $my_dir/zero2go.log
@@ -210,7 +211,7 @@ set_bulk_always_on()
 }
 
 # output and refresh the interface
-log2file 'Zero2Go Omini console (v1.11) initialized...'
+log2file 'Zero2Go Omini console (v1.50) initialized...'
 
 if one_wire_confliction ; then
 	echo ''
@@ -230,9 +231,9 @@ tput setaf 4
 tput bold
 echo 'ZERO2GO OMINI CONSOLE'
 tput sgr0
-tput cup 2 20
+tput cup 2 16
 tput setaf 8
-echo 'v1.11 by UUGear s.r.o.'
+echo 'v1.50 by Dun Cat B.V. (UUGear)'
 tput sgr0
 
 tput cup 4 0
