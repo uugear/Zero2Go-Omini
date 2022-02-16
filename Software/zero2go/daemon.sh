@@ -11,7 +11,7 @@ cur_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 . "$cur_dir/utilities.sh"
 . "$cur_dir/gpio-util.sh"
 
-log 'Zero2Go Omini daemon (v1.50) is started.'
+log 'Zero2Go Omini daemon (v1.51) is started.'
 
 # log Raspberry Pi model
 pi_model=$(cat /proc/device-tree/model)

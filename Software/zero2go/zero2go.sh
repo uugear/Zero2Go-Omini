@@ -233,7 +233,7 @@ echo 'ZERO2GO OMINI CONSOLE'
 tput sgr0
 tput cup 2 16
 tput setaf 8
-echo 'v1.50 by Dun Cat B.V. (UUGear)'
+echo 'v1.51 by Dun Cat B.V. (UUGear)'
 tput sgr0
 
 tput cup 4 0
