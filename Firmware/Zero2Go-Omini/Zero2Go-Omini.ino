@@ -63,6 +63,24 @@ volatile unsigned long buttonStateChangeTime = 0;
 
 volatile unsigned long voltageQueryTime = 0;
 
+void timer1_enable();
+void cutPower();
+void powerOn();
+void redLightOn();
+void suggestShutdown();
+void redLightOff();
+void initializeRegisters();
+void updateRegister(int index, byte value);
+float getVoltage(int pin);
+int getIntegerPart(float v);
+int getDecimalPart(float v);
+unsigned int getPowerCutPreloadTimer();
+void receiveEvent(int count);
+boolean addressEvent(uint16_t slaveAddress, uint8_t startCount);
+void requestEvent();
+void comparatorStatusChanged();
+void sleep();
+
 void setup() {
 
   // initialize pin states and make sure power is cut
