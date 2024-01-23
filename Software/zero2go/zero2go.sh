@@ -211,7 +211,7 @@ set_bulk_always_on()
 }
 
 # output and refresh the interface
-log2file 'Zero2Go Omini console (v1.50) initialized...'
+log2file 'Zero2Go Omini console (v1.52) initialized...'
 
 if one_wire_confliction ; then
 	echo ''
