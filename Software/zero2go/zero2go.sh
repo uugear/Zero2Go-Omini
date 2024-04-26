@@ -9,7 +9,6 @@ if [ -z "$my_dir" ] ; then
   exit 1
 fi
 . "$my_dir/utilities.sh"
-. "$my_dir/gpio-util.sh"
 
 # take the ownership of the log file
 sudo chown $USER:$USER $my_dir/zero2go.log
@@ -211,7 +210,7 @@ set_bulk_always_on()
 }
 
 # output and refresh the interface
-log2file 'Zero2Go Omini console (v1.53) initialized...'
+log2file 'Zero2Go Omini console (v1.6) initialized...'
 
 if one_wire_confliction ; then
 	echo ''
@@ -220,6 +219,14 @@ if one_wire_confliction ; then
 	log 'You may solve this confliction by moving 1-Wire interface to another GPIO pin.'
 	echo ''
 	exit
+fi
+
+# do not run further if wiringPi is not installed
+if ! hash gpio 2>/dev/null; then
+  echo ''
+  log 'Seems wiringPi is not installed, please run again the latest installation script to fix this.'
+  echo ''
+  exit
 fi
 
 while true; do
@@ -233,7 +240,7 @@ echo 'ZERO2GO OMINI CONSOLE'
 tput sgr0
 tput cup 2 16
 tput setaf 8
-echo 'v1.51 by Dun Cat B.V. (UUGear)'
+echo 'v1.6 by Dun Cat B.V. (UUGear)'
 tput sgr0
 
 tput cup 4 0

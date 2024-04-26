@@ -9,9 +9,14 @@ cur_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # utilities
 . "$cur_dir/utilities.sh"
-. "$cur_dir/gpio-util.sh"
 
-log 'Zero2Go Omini daemon (v1.53) is started.'
+log 'Zero2Go Omini daemon (v1.6) is started.'
+
+# system information
+os=$(get_os)
+kernel=$(get_kernel)
+arch=$(get_arch)
+log "System: $os, Kernel: $kernel, Architecture: $arch"
 
 # log Raspberry Pi model
 pi_model=$(cat /proc/device-tree/model)
@@ -22,6 +27,12 @@ if one_wire_confliction ; then
 	log "Confliction: 1-Wire interface is enabled on GPIO-$HALT_PIN, which is also used by Zero2Go Omini."
 	log 'Zero2Go daemon can not work until you solve this confliction and reboot Raspberry Pi.'
 	exit
+fi
+
+# do not run further if wiringPi is not installed
+if ! hash gpio 2>/dev/null; then
+  log 'Seems wiringPi is not installed, please run again the latest installation script to fix this.'
+  exit
 fi
 
 # make sure the halt pin is input with internal pull up

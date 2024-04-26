@@ -141,3 +141,18 @@ read_channel_C()
 	local d=$(i2c_read 0x01 $I2C_SLAVE_ADDRESS $I2C_CHANNEL_CD)
 	calc $(($i))+$(($d))/100
 }
+
+get_os()
+{
+  echo $(hostnamectl | grep 'Operating System:' | sed 's/.*Operating System: //')
+}
+
+get_kernel()
+{
+  echo $(uname -sr)
+}
+
+get_arch()
+{
+  echo $(dpkg --print-architecture)
+}
